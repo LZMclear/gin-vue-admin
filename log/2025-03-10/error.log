@@ -1,0 +1,1 @@
+[github.com/flipped-aurora/gin-vue-admin/server]2025-03-10 20:09:50.603	[31merror[0m	E:/Gvto/桌面/gin-vue-admin-main/server/api/v1/system/sys_menu.go:145	添加失败!	{"error": "存在重复name，请修改name"}
