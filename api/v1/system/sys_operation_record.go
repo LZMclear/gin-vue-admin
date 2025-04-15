@@ -147,3 +147,8 @@ func (s *OperationRecordApi) GetSysOperationRecordList(c *gin.Context) {
 		PageSize: pageInfo.PageSize,
 	}, "获取成功", c)
 }
+
+// FindSysOperationRecordListByPage 分页查询操作记录
+func (s *OperationRecordApi) FindSysOperationRecordListByPage(c *gin.Context) {
+
+}

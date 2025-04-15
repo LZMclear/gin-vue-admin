@@ -23,7 +23,7 @@ func initRedisClient(redisCfg config.Redis) (redis.UniversalClient, error) {
 		client = redis.NewClient(&redis.Options{
 			Addr:     redisCfg.Addr,
 			Password: redisCfg.Password,
-			DB:       redisCfg.DB,
+			DB:       redisCfg.DB, //使用哪一个数据库
 		})
 	}
 	pong, err := client.Ping(context.Background()).Result()

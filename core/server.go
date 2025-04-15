@@ -9,6 +9,7 @@ import (
 )
 
 type server interface {
+	// ListenAndServe http.Server实现了ListenAndServer方法，将http.Server转变为server接口类型
 	ListenAndServe() error
 }
 

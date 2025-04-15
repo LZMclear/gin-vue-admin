@@ -11,15 +11,21 @@ import (
 func Cors() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		method := c.Request.Method
+		//获取请求的源
 		origin := c.Request.Header.Get("Origin")
+		//设置响应头，允许指定的源访问资源
 		c.Header("Access-Control-Allow-Origin", origin)
+		//允许的请求头字段
 		c.Header("Access-Control-Allow-Headers", "Content-Type,AccessToken,X-CSRF-Token, Authorization, Token,X-Token,X-User-Id")
+		//允许请求的方法
 		c.Header("Access-Control-Allow-Methods", "POST, GET, OPTIONS,DELETE,PUT")
+		//允许客户端访问的响应头字段
 		c.Header("Access-Control-Expose-Headers", "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Content-Type, New-Token, New-Expires-At")
 		c.Header("Access-Control-Allow-Credentials", "true")
 
 		// 放行所有OPTIONS方法
 		if method == "OPTIONS" {
+			//StatusNoContent表示请求已经成功处理，但是响应没有返回值
 			c.AbortWithStatus(http.StatusNoContent)
 		}
 		// 处理请求

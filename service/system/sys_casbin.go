@@ -186,6 +186,7 @@ var (
 )
 
 func (casbinService *CasbinService) Casbin() *casbin.SyncedCachedEnforcer {
+	//只执行一次赋值给syncedCachedEnforcer
 	once.Do(func() {
 		a, err := gormadapter.NewAdapterByDB(global.GVA_DB)
 		if err != nil {

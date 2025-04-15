@@ -2,6 +2,8 @@ package global
 
 import (
 	"fmt"
+	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/segmentio/kafka-go"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -31,12 +33,16 @@ var (
 	GVA_VP        *viper.Viper
 	// GVA_LOG    *oplogging.Logger
 	GVA_LOG                 *zap.Logger
-	GVA_Timer               timer.Timer = timer.NewTimerTask() //time.Timer类型，直接进行了初始化
-	GVA_Concurrency_Control             = &singleflight.Group{}
+	GVA_Timer               timer.Timer = timer.NewTimerTask()  //time.Timer类型，直接进行了初始化
+	GVA_Concurrency_Control             = &singleflight.Group{} //实现并发控制，避免多个goroutine 同时执行相同的操作。
 	GVA_ROUTERS             gin.RoutesInfo
 	GVA_ACTIVE_DBNAME       *string
 	BlackCache              local_cache.Cache
 	lock                    sync.RWMutex
+	GVA_WRITER              *kafka.Writer
+	GVA_MYSQL_READER        *kafka.Reader
+	GVA_ES_READER           *kafka.Reader
+	GVA_ES_CLIENT           *elasticsearch.TypedClient
 )
 
 // GetGlobalDBByDBName 通过名称获取db list中的db

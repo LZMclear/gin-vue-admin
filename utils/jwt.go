@@ -52,6 +52,7 @@ func (j *JWT) CreateToken(claims request.CustomClaims) (string, error) {
 
 // CreateTokenByOldToken 旧token 换新token 使用归并回源避免并发问题
 func (j *JWT) CreateTokenByOldToken(oldToken string, claims request.CustomClaims) (string, error) {
+	//管理并发请求，"JWT:"+oldToken用于标识请求的唯一性，对于相同的oldToken，同一时间只有一个goroutine执行相应的操作
 	v, err, _ := global.GVA_Concurrency_Control.Do("JWT:"+oldToken, func() (interface{}, error) {
 		return j.CreateToken(claims)
 	})
@@ -60,6 +61,7 @@ func (j *JWT) CreateTokenByOldToken(oldToken string, claims request.CustomClaims
 
 // ParseToken 解析 token
 func (j *JWT) ParseToken(tokenString string) (*request.CustomClaims, error) {
+	//根据结构体解析令牌
 	token, err := jwt.ParseWithClaims(tokenString, &request.CustomClaims{}, func(token *jwt.Token) (i interface{}, e error) {
 		return j.SigningKey, nil
 	})
@@ -78,7 +80,7 @@ func (j *JWT) ParseToken(tokenString string) (*request.CustomClaims, error) {
 			return nil, TokenInvalid
 		}
 	}
-	if token != nil {
+	if token != nil { //将token的声明断言为自定义声明类型
 		if claims, ok := token.Claims.(*request.CustomClaims); ok && token.Valid {
 			return claims, nil
 		}

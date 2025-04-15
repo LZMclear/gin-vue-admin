@@ -34,4 +34,10 @@ type Server struct {
 
 	// 跨域配置
 	Cors CORS `mapstructure:"cors" json:"cors" yaml:"cors"`
+
+	//kafka配置
+	Kafka Kafka `mapstructure:"kafka" json:"kafka" yaml:"kafka"`
+
+	//Elasticsearch配置
+	Elasticsearch Elasticsearch `mapstructure:"es" json:"es" yaml:"es"`
 }

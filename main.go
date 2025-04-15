@@ -32,9 +32,15 @@ func main() {
 	initialize.OtherInit()
 	global.GVA_LOG = core.Zap() // 初始化zap日志库
 	zap.ReplaceGlobals(global.GVA_LOG)
-	global.GVA_DB = initialize.Gorm() // gorm连接数据库
-	initialize.Timer()
-	initialize.DBList()
+	global.GVA_DB = initialize.Gorm()                                                         // gorm连接数据库
+	initialize.Timer()                                                                        //运行定时任务
+	initialize.DBList()                                                                       //不知道什么作用
+	global.GVA_WRITER, global.GVA_MYSQL_READER, global.GVA_ES_READER = initialize.InitKafka() //初始化卡夫卡，创建topic主题
+	defer global.GVA_WRITER.Close()
+	defer global.GVA_MYSQL_READER.Close()
+	defer global.GVA_ES_READER.Close()
+	global.GVA_ES_CLIENT = initialize.InitESClient()
+	initialize.InitES()
 	if global.GVA_DB != nil {
 		initialize.RegisterTables() // 初始化表
 		// 程序结束前关闭数据库链接

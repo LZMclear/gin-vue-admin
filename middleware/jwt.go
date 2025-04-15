@@ -15,13 +15,20 @@ import (
 
 var jwtService = service.ServiceGroupApp.SystemServiceGroup.JwtService
 
+//token 解析很多遍，有一些冗余
+
 func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 我们这里jwt鉴权取头部信息 x-token 登录时回返回token信息 这里前端需要把token存储到cookie或者本地localStorage中 不过需要跟后端协商过期时间 可以约定刷新令牌或者重新登录
-		token := utils.GetToken(c)
+		// 我们这里jwt鉴权取头部信息 x-token
+		//登录时回返回token信息 这里前端需要把token存储到cookie或者本地localStorage中
+		//不过需要跟后端协商过期时间 可以约定刷新令牌或者重新登录
+		token, _ := utils.GetToken(c)
+
+		//？？？获取token时如果为空直接返回错误了，应该不会进行下一步
+
 		if token == "" {
 			response.NoAuth("未登录或非法访问", c)
-			c.Abort()
+			c.Abort() //终止当前请求的处理流程，阻止后续的中间件和处理函数继续执行
 			return
 		}
 		if jwtService.IsBlacklist(token) {
@@ -34,7 +41,7 @@ func JWTAuth() gin.HandlerFunc {
 		// parseToken 解析token包含的信息
 		claims, err := j.ParseToken(token)
 		if err != nil {
-			if errors.Is(err, utils.TokenExpired) {
+			if errors.Is(err, utils.TokenExpired) { //判断是否是预定义的错误，不是直接返回错误信息
 				response.NoAuth("授权已过期", c)
 				utils.ClearToken(c)
 				c.Abort()
@@ -54,12 +61,12 @@ func JWTAuth() gin.HandlerFunc {
 		//	response.FailWithDetailed(gin.H{"reload": true}, err.Error(), c)
 		//	c.Abort()
 		//}
-		c.Set("claims", claims)
-		if claims.ExpiresAt.Unix()-time.Now().Unix() < claims.BufferTime {
-			dr, _ := utils.ParseDuration(global.GVA_CONFIG.JWT.ExpiresTime)
-			claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(dr))
-			newToken, _ := j.CreateTokenByOldToken(token, *claims)
-			newClaims, _ := j.ParseToken(newToken)
+		c.Set("claims", claims)                                            //将声明存储在上下文中
+		if claims.ExpiresAt.Unix()-time.Now().Unix() < claims.BufferTime { //判断是否过期
+			dr, _ := utils.ParseDuration(global.GVA_CONFIG.JWT.ExpiresTime) //解析时间
+			claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(dr))       //重新设置过期时间
+			newToken, _ := j.CreateTokenByOldToken(token, *claims)          //通过老token创建新的token
+			newClaims, _ := j.ParseToken(newToken)                          //解析获取新的claims 这不一样吗？？？
 			c.Header("new-token", newToken)
 			c.Header("new-expires-at", strconv.FormatInt(newClaims.ExpiresAt.Unix(), 10))
 			utils.SetToken(c, newToken, int(dr.Seconds()))

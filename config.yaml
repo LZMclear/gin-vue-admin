@@ -239,3 +239,18 @@ zap:
     show-line: true
     log-in-console: true
     retention-day: -1
+kafka:
+    topic: op-records
+    brokers:
+        - 43.138.33.205:9092
+        - 43.138.33.205:9093
+        - 43.138.33.205:9094
+    mysql-group-id: mysql
+    elasticsearch-group-id: es
+es:
+    address: "http://43.138.33.205:9200"
+    timeout: 10
+    index: "op-records"
+    batch-size: 30 # 同步批次大小
+    max-retries: 3 # 失败重试次数
+

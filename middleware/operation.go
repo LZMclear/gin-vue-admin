@@ -2,7 +2,11 @@ package middleware
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/flipped-aurora/gin-vue-admin/server/model/common/response"
+	"github.com/segmentio/kafka-go"
 	"io"
 	"net/http"
 	"net/url"
@@ -31,16 +35,19 @@ func init() {
 	}
 }
 
+// OperationRecord 主要用来记录http请求和响应的相关信息
 func OperationRecord() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var body []byte
 		var userId int
-		if c.Request.Method != http.MethodGet {
+		if c.Request.Method != http.MethodGet { //其他请求
 			var err error
+			//读取请求体，存入body变量中
 			body, err = io.ReadAll(c.Request.Body)
 			if err != nil {
 				global.GVA_LOG.Error("read body from request error:", zap.Error(err))
 			} else {
+				//将请求体重新设置到c.Request.Body中，以便后续处理函数可以继续读取请求体
 				c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
 			}
 		} else {
@@ -48,12 +55,14 @@ func OperationRecord() gin.HandlerFunc {
 			query, _ = url.QueryUnescape(query)
 			split := strings.Split(query, "&")
 			m := make(map[string]string)
+			//将请求的参数以键值对方式存储
 			for _, v := range split {
 				kv := strings.Split(v, "=")
 				if len(kv) == 2 {
 					m[kv[0]] = kv[1]
 				}
 			}
+			//JSON序列化
 			body, _ = json.Marshal(&m)
 		}
 		claims, _ := utils.GetClaims(c)
@@ -66,16 +75,17 @@ func OperationRecord() gin.HandlerFunc {
 			}
 			userId = id
 		}
-		record := system.SysOperationRecord{
-			Ip:     c.ClientIP(),
-			Method: c.Request.Method,
-			Path:   c.Request.URL.Path,
-			Agent:  c.Request.UserAgent(),
-			Body:   "",
-			UserID: userId,
+		record := system.SysOperationRecordsKafka{
+			CreatedAt: time.Now(),
+			Ip:        c.ClientIP(),          //IP地址
+			Method:    c.Request.Method,      //请求方法
+			Path:      c.Request.URL.Path,    //请求路由
+			Agent:     c.Request.UserAgent(), //请求代理
+			Body:      "",
+			UserID:    userId, //用户ID
 		}
 
-		// 上传文件时候 中间件日志进行裁断操作
+		// 上传文件时 中间件日志进行裁断操作
 		if strings.Contains(c.GetHeader("Content-Type"), "multipart/form-data") {
 			record.Body = "[文件]"
 		} else {
@@ -85,21 +95,28 @@ func OperationRecord() gin.HandlerFunc {
 				record.Body = string(body)
 			}
 		}
-
+		//创建自定义的responseBodyWriter用于记录响应内容
 		writer := responseBodyWriter{
 			ResponseWriter: c.Writer,
 			body:           &bytes.Buffer{},
 		}
+		//将ResponseWriter改为自定义的writer，因为writer以匿名字段封装了ResponseWriter，所以可以直接调用它的方法
 		c.Writer = writer
 		now := time.Now()
 
 		c.Next()
 
-		latency := time.Since(now)
+		latency := time.Since(now) //运行时间
 		record.ErrorMessage = c.Errors.ByType(gin.ErrorTypePrivate).String()
-		record.Status = c.Writer.Status()
+		record.Status = c.Writer.Status() //响应状态码
 		record.Latency = latency
-		record.Resp = writer.body.String()
+		//解析响应体
+		var resp response.Response
+		err := json.Unmarshal(writer.body.Bytes(), &resp)
+		if err != nil {
+			fmt.Println(err)
+		}
+		record.Resp = resp
 
 		if strings.Contains(c.Writer.Header().Get("Pragma"), "public") ||
 			strings.Contains(c.Writer.Header().Get("Expires"), "0") ||
@@ -110,15 +127,28 @@ func OperationRecord() gin.HandlerFunc {
 			strings.Contains(c.Writer.Header().Get("Content-Type"), "application/download") ||
 			strings.Contains(c.Writer.Header().Get("Content-Disposition"), "attachment") ||
 			strings.Contains(c.Writer.Header().Get("Content-Transfer-Encoding"), "binary") {
-			if len(record.Resp) > bufferSize {
+			if len(writer.body.String()) > bufferSize {
 				// 截断
-				record.Body = "超出记录长度"
+				record.Resp.Msg = "超出记录长度" //将record.Body ——>record.Resp
 			}
 		}
-
-		if err := operationRecordService.CreateSysOperationRecord(record); err != nil {
-			global.GVA_LOG.Error("create operation record error:", zap.Error(err))
+		//序列化为字节
+		marshal, err := json.Marshal(record)
+		if err != nil {
+			global.GVA_LOG.Error("marshal json records error:", zap.Error(err))
 		}
+		ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second)
+		defer cancelFunc()
+		// 执行kafka日志异步生产
+		if err = global.GVA_WRITER.WriteMessages(ctx, kafka.Message{
+			Value: marshal,
+		}); err != nil {
+			global.GVA_LOG.Info("write messages to kafka error:", zap.Error(err))
+		}
+
+		//if err := operationRecordService.CreateSysOperationRecord(record); err != nil {
+		//	global.GVA_LOG.Error("create operation record error:", zap.Error(err))
+		//}
 	}
 }
 

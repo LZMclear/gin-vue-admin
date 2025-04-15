@@ -5,9 +5,9 @@ import (
 )
 
 type RouterGroup struct {
-	CustomerRouter
-	FileUploadAndDownloadRouter
-	AttachmentCategoryRouter
+	CustomerRouter              //客户路由
+	FileUploadAndDownloadRouter //文件上传和下载路由
+	AttachmentCategoryRouter    //分类路由
 }
 
 var (

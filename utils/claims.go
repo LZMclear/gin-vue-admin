@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"net"
 	"time"
 
@@ -27,39 +28,61 @@ func ClearToken(c *gin.Context) {
 
 func SetToken(c *gin.Context, token string, maxAge int) {
 	// 增加cookie x-token 向来源的web添加
+
+	//从请求的主机信息中分离主机信息和端口号
 	host, _, err := net.SplitHostPort(c.Request.Host)
-	if err != nil {
+	if err != nil { //不包含端口号，那么c.Request.Host就是主机信息，直接赋值给host即可
 		host = c.Request.Host
 	}
 
-	if net.ParseIP(host) != nil {
+	if net.ParseIP(host) != nil { //判断字符串是否是有效的IP地址，是返回IP地址
+		//maxAge：Cookie的最大存活时间，单位为秒 path："/" 表明cookie对哪些请求路径有效
 		c.SetCookie("x-token", token, maxAge, "/", "", false, false)
 	} else {
 		c.SetCookie("x-token", token, maxAge, "/", host, false, false)
 	}
 }
 
-func GetToken(c *gin.Context) string {
+// GetToken reWrite  这个用于中间件访问获取token，并进行一些初始化，主要目的是只运行一次
+// 获取token，解析信息，存入上下文中  相较于源代码，这次直接全部返回去
+func GetToken(c *gin.Context) (string, error) {
+	token := GetTokenSingle(c)
+	if token == "" {
+		global.GVA_LOG.Error("未登录或非法访问")
+		return "", errors.New("未登录或非法访问")
+	}
+	claims, err := GetClaims(c)
+	if err != nil {
+		global.GVA_LOG.Error("重新写入cookie token失败")
+		return "", err
+	} else {
+		// 将获取的claim存入上下文中备用
+		c.Set("claims", claims)
+		//重新设置token
+		SetToken(c, token, int((claims.ExpiresAt.Unix()-time.Now().Unix())/60))
+	}
+	return token, nil
+}
+
+func GetTokenSingle(c *gin.Context) string {
 	token, _ := c.Cookie("x-token")
 	if token == "" {
-		j := NewJWT()
 		token = c.Request.Header.Get("x-token")
-		claims, err := j.ParseToken(token)
-		if err != nil {
-			global.GVA_LOG.Error("重新写入cookie token失败,未能成功解析token,请检查请求头是否存在x-token且claims是否为规定结构")
-			return token
-		}
-		SetToken(c, token, int((claims.ExpiresAt.Unix()-time.Now().Unix())/60))
 	}
 	return token
 }
 
 func GetClaims(c *gin.Context) (*systemReq.CustomClaims, error) {
-	token := GetToken(c)
+	//判断上下文中是否有Claims
+	if claims, exists := c.Get("claims"); exists {
+		return claims.(*systemReq.CustomClaims), nil
+	}
+	//没有，获取token解析返回claims
+	token := GetTokenSingle(c)
 	j := NewJWT()
 	claims, err := j.ParseToken(token)
 	if err != nil {
-		global.GVA_LOG.Error("从Gin的Context中获取从jwt解析信息失败, 请检查请求头是否存在x-token且claims是否为规定结构")
+		global.GVA_LOG.Error("jwt解析信息失败, 请检查请求头是否存在x-token且claims是否为规定结构")
 	}
 	return claims, err
 }

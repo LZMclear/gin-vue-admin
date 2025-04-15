@@ -36,8 +36,8 @@ type Timer interface {
 
 type task struct {
 	EntryID  cron.EntryID
-	Spec     string
-	TaskName string
+	Spec     string //时间表达式
+	TaskName string //任务名称
 }
 
 type taskManager struct {
@@ -145,7 +145,7 @@ func (t *timer) FindCron(cronName string) (*taskManager, bool) {
 	return v, ok
 }
 
-// FindTask 获取对应cronName的cron 可能会为空
+// FindTask 获取对应taskName的task 可能会为空
 func (t *timer) FindTask(cronName string, taskName string) (*task, bool) {
 	t.Lock()
 	defer t.Unlock()
@@ -211,7 +211,7 @@ func (t *timer) Clear(cronName string) {
 	defer t.Unlock()
 	if v, ok := t.cronList[cronName]; ok {
 		v.corn.Stop()
-		delete(t.cronList, cronName)
+		delete(t.cronList, cronName) //是不是应该写外面？？？
 	}
 }
 

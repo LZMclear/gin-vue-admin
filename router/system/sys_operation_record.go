@@ -8,6 +8,7 @@ type OperationRecordRouter struct{}
 
 func (s *OperationRecordRouter) InitSysOperationRecordRouter(Router *gin.RouterGroup) {
 	operationRecordRouter := Router.Group("sysOperationRecord")
+	searchOperationRecordRouter := Router.Group("sysSearchRecord")
 	{
 		operationRecordRouter.POST("createSysOperationRecord", operationRecordApi.CreateSysOperationRecord)             // 新建SysOperationRecord
 		operationRecordRouter.DELETE("deleteSysOperationRecord", operationRecordApi.DeleteSysOperationRecord)           // 删除SysOperationRecord
@@ -15,5 +16,8 @@ func (s *OperationRecordRouter) InitSysOperationRecordRouter(Router *gin.RouterG
 		operationRecordRouter.GET("findSysOperationRecord", operationRecordApi.FindSysOperationRecord)                  // 根据ID获取SysOperationRecord
 		operationRecordRouter.GET("getSysOperationRecordList", operationRecordApi.GetSysOperationRecordList)            // 获取SysOperationRecord列表
 
+	}
+	{
+		searchOperationRecordRouter.GET("FindSysOperationRecordListByPage", operationRecordApi.FindSysOperationRecordListByPage)
 	}
 }

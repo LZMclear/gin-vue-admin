@@ -1,4 +1,5 @@
 FROM golang:alpine as builder
+# 指定镜像基础环境
 
 WORKDIR /go/src/github.com/flipped-aurora/gin-vue-admin/server
 COPY . .
@@ -28,4 +29,5 @@ COPY --from=0 /go/src/github.com/flipped-aurora/gin-vue-admin/server/config.dock
 # VOLUME ["/go/src/github.com/flipped-aurora/gin-vue-admin/server"]
 
 EXPOSE 8888
+# 指定镜像的启动命令
 ENTRYPOINT ./server -c config.docker.yaml
